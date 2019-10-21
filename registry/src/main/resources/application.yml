@@ -1,0 +1,12 @@
+spring:
+  application:
+    # 注册中心名称
+    name: registry
+
+# 注册中心映射端口号 建议默认与Euraka一致
+server:
+  port: 8761
+# 对应Euraka没必要注册客户端
+eureka:
+  client:
+    register-with-eureka: false
