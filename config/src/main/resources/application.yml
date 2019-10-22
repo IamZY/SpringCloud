@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: config
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://gitee.com/ntuzy/sc-config
+          username: 562018301@qq.com
+          password: zangyang951026
+server:
+  port: 9100
