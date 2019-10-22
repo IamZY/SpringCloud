@@ -35,4 +35,20 @@ public class BookController {
     }
 
 
+    @GetMapping("/info")
+    public Map info(Long bid) {
+        Map result = new HashMap();
+        try {
+            Book book = bookService.getInfo(bid);
+            result.put("code", "0");
+            result.put("message", "success");
+            result.put("data", book);
+        } catch (Exception e) {
+            result.put("code", e.getClass().getSimpleName());
+            result.put("message", e.getMessage());
+        }
+        return result;
+    }
+
+
 }

@@ -22,6 +22,8 @@
 </properties>
 ```
 
+
+
 ```properties
 spring:
   application:
@@ -260,7 +262,182 @@ client+config server+ config client
 
 + member 中删除application.yml 增加 bootstrap.yml
 
+  ```properties
+  spring:
+    application:
+      name: book
+    cloud:
+      config:
+        discovery:
+          enabled: true
+          service-id: config
+        profile: dev
+  eureka:
+    client:
+      service-url:
+        defaultZone: http://localhost:8761/eureka
   
+  ```
+
+## 微服务之间的通信RestTemplate_Ribbon
+
++ 方案一
+
+  ```java
+  @GetMapping("/test")
+  @ResponseBody
+  public String test(Long bid) {
+      // 最简单的情况就是使用内置Spring Cloud 内置的RestTemplate
+      // RestTemplate 底层http传输就是apache HttpClient 组件
+      RestTemplate restTemplate = new RestTemplate();
+      String json = restTemplate.getForObject("http://localhost:8100/info?bid=" + bid, String.class);
+      System.out.println(json);
+      return json;
+  }
+  ```
+
++ 方案二-轮询
+
+  ```java
+  // 负载均衡客户端 Ribbon核心组件
+  @Resource
+  private LoadBalancerClient loadBalancerClient;
+  
+  @GetMapping("/test")
+  @ResponseBody
+  public String test(Long bid) {
+      // 最简单的情况就是使用内置Spring Cloud 内置的RestTemplate
+      // RestTemplate 底层http传输就是apache HttpClient 组件
+      //        RestTemplate restTemplate = new RestTemplate();
+      //        String json = restTemplate.getForObject("http://localhost:8100/info?bid=" + bid, String.class);
+      //        System.out.println(json);
+      //        return json;
+  
+      // Ribbon
+      RestTemplate restTemplate = new RestTemplate();
+      ServiceInstance instance = loadBalancerClient.choose("book");
+      String host = instance.getHost(); // 获取主机名
+      int port = instance.getPort();  // 获取端口号
+      String json = restTemplate.getForObject("http://"+ host +":"+ port +"/info?bid=" + bid, String.class);
+      return json;
+  }
+  ```
+
++ 方法三 注解
+
+  ```java
+  package com.ntuzy.springcloud.member;
+  
+  import org.springframework.boot.SpringApplication;
+  import org.springframework.boot.autoconfigure.SpringBootApplication;
+  import org.springframework.cloud.client.loadbalancer.LoadBalanced;
+  import org.springframework.context.annotation.Bean;
+  import org.springframework.web.bind.annotation.CrossOrigin;
+  import org.springframework.web.client.RestTemplate;
+  
+  @SpringBootApplication
+  public class MemberApplication {
+  
+      @Bean
+      @LoadBalanced // 对 restTemplate 对象进行负载均衡
+      public RestTemplate restTemplate(){
+          return new RestTemplate();
+      }
+  
+      public static void main(String[] args) {
+          SpringApplication.run(MemberApplication.class, args);
+      }
+  
+  }
+  
+  ```
+
+  controller
+
+  ```java
+  @Resource
+  private RestTemplate restTemplate;
+  
+  @GetMapping("/test")
+  @ResponseBody
+  public String test(Long bid) {
+      // 利用注解简化url通信
+      String json = restTemplate.getForObject("http://book/info?bid=" + bid, String.class);
+      return json;
+  }
+  ```
+
+## 服务间通信-Feign
+
+默认支持负载均衡 同Ribbon
+
+```xml
+<!-- Feign -->
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-openfeign</artifactId>
+</dependency>
+```
+
++ application
+
+  ```java
+  @SpringBootApplication
+  @EnableDiscoveryClient
+  @EnableFeignClients
+  public class MemberApplication {
+  
+      @Bean
+      @LoadBalanced // 对 restTemplate 对象进行负载均衡
+      public RestTemplate restTemplate(){
+          return new RestTemplate();
+      }
+  
+      public static void main(String[] args) {
+          SpringApplication.run(MemberApplication.class, args);
+      }
+  
+  }
+  ```
+
++ BookClinet
+
+  ```java
+  package com.ntuzy.springcloud.member.client;
+  
+  import org.springframework.cloud.openfeign.FeignClient;
+  import org.springframework.web.bind.annotation.GetMapping;
+  import org.springframework.web.bind.annotation.RequestParam;
+  
+  @FeignClient(name = "book")  // 指明这是book微服务的调用客户端
+  public interface BookClient {
+      @GetMapping("/info") // 当调用getInfo方法的时候 自动向book微服务book的info发起请求
+      // 会将bid=xxx 附加到info中
+      public String getInfo(@RequestParam("bid") Long bid);
+      
+       // Get请求对应getmapping Post请求postMapping
+      // Post请求传递参数的时候使用@requestBody
+      @PostMapping("/create")
+      public String create(@RequestBody Map rec);
+      
+  }
+  ```
+
++ BookController
+
+  ```java
+  @Resource
+  private BookClient bookClient;
+  
+  @GetMapping("/test1")
+  @ResponseBody
+  public String test1(Long bid) {
+      String json = bookClient.getInfo(bid);
+      return json;
+  }
+  ```
+
+### 将传入结果反序列化
 
 
 
