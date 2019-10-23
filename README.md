@@ -674,7 +674,7 @@ client+config server+ config client
           errorThresholdPercentage: 60
   ```
 
-  ![images](https://github.com/IamZY/SpringCloud/images/1571817094530.png)
+  ![images](https://github.com/IamZY/SpringCloud/blob/master/images/1571817094530.png)
 
 
 
