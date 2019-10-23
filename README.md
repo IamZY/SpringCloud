@@ -439,9 +439,242 @@ client+config server+ config client
 
 ### 将传入结果反序列化
 
++ memberDTO
 
+  将其他系统的entity转换到此系统中
 
+  ```java
+  package com.ntuzy.springcloud.book.client;
+  
+  import java.util.Date;
+  
+  public class MemberDTO {
+  
+      private Long mid;
+      private String name;
+      private String idno;
+      private String mobile;
+      private Date regdate;
+      private Date expdate;
+  
+  
+      public Long getMid() {
+          return mid;
+      }
+  
+      public void setMid(Long mid) {
+          this.mid = mid;
+      }
+  
+      public String getName() {
+          return name;
+      }
+  
+      public void setName(String name) {
+          this.name = name;
+      }
+  
+      public String getIdno() {
+          return idno;
+      }
+  
+      public void setIdno(String idno) {
+          this.idno = idno;
+      }
+  
+      public String getMobile() {
+          return mobile;
+      }
+  
+      public void setMobile(String mobile) {
+          this.mobile = mobile;
+      }
+  
+      public Date getRegdate() {
+          return regdate;
+      }
+  
+      public void setRegdate(Date regdate) {
+          this.regdate = regdate;
+      }
+  
+      public Date getExpdate() {
+          return expdate;
+      }
+  
+      public void setExpdate(Date expdate) {
+          this.expdate = expdate;
+      }
+  }
+  
+  ```
 
++ MemberResult
+
+  ```java
+  package com.ntuzy.springcloud.book.client;
+  
+  public class MemberResult {
+  
+      private String code;
+      private String message;
+      private MemberDTO data;
+  
+      public String getCode() {
+          return code;
+      }
+  
+      public void setCode(String code) {
+          this.code = code;
+      }
+  
+      public String getMessage() {
+          return message;
+      }
+  
+      public void setMessage(String message) {
+          this.message = message;
+      }
+  
+      public MemberDTO getData() {
+          return data;
+      }
+  
+      public void setData(MemberDTO data) {
+          this.data = data;
+      }
+  }
+  ```
+
+## 容错机制
+
+### Eureka Hystrix 服务降级
+
+```xml
+<!-- hystrix -->
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
+</dependency>
+```
+
++ controller
+
+  ```java
+  @GetMapping("/test")
+  @ResponseBody
+  @HystrixCommand(fallbackMethod = "fallback")
+  public String test(Long bid) {
+      // 利用注解简化url通信
+      String json = restTemplate.getForObject("http://book/info?bid=" + bid, String.class);
+      return json;
+  }
+  
+  // 服务降级的方法 要求返回值参数与目标方法保持一致
+  private String fallback(Long bid) {
+      return "当前系统正忙,请稍后再试";
+  }
+  ```
+
++ application
+
+  ```java
+  @SpringBootApplication
+  @EnableDiscoveryClient
+  @EnableFeignClients
+  @EnableCircuitBreaker  // 断路器
+  public class MemberApplication {
+  
+      @Bean
+      @LoadBalanced // 对 restTemplate 对象进行负载均衡
+      public RestTemplate restTemplate() {
+          return new RestTemplate();
+      }
+  
+      public static void main(String[] args) {
+          SpringApplication.run(MemberApplication.class, args);
+      }
+  
+  }
+  ```
+
+#### 全局降级
+
++ controller
+
+  ```java
+  @DefaultProperties(defaultFallback = "defaultFallBack")
+  public class MemberController {
+      // 全局默认的降级方法 不需要参数 且返回String或者任何可以被Json序列化的对象
+      private String defaultFallBack(){
+          return "当前系统正忙,请稍后再试111";
+      }
+  }
+  ```
+
+### Feign+Hystrix 服务降级
+
++ MemberClient
+
+  ```java
+  package com.ntuzy.springcloud.book.client;
+  
+  import org.springframework.cloud.openfeign.FeignClient;
+  import org.springframework.stereotype.Component;
+  import org.springframework.web.bind.annotation.GetMapping;
+  import org.springframework.web.bind.annotation.RequestParam;
+  
+  @FeignClient(name = "member", fallback = MemberClient.MemberClientFallBack.class)
+  public interface MemberClient {
+  
+      @GetMapping("/check")
+      public MemberResult checkMobile(@RequestParam("mobile") Long mobile);
+  
+      @Component
+      static class MemberClientFallBack implements MemberClient {
+  
+          @Override
+          public MemberResult checkMobile(Long mobile) {
+              MemberResult mr = new MemberResult();
+              mr.setCode("0");
+              mr.setMessage("success");
+              return mr;
+          }
+      }
+  
+  }
+  ```
+
++ application.yml
+
+  ```properties
+  # 启动feign+Hystrix
+  feign:
+    hystrix:
+      enabled: true
+  ```
+
+## Hystrix 断路器
+
+统计过往请求多少成功多少失败 失败请求过多就会断开。哪怕正确的请求都会自动降级，过一段时间再尝试发送请求。断路器变成半开的时候，访问请求成功，断路器关闭，访问正常。否则访问失败，再等一段时间再次请求，
+
++ application.yml
+
+  ```properties
+  hystrix:
+    command:
+      default:
+        execution:
+          isolation:
+            thread:
+              timeoutInMilliseconds: 3000
+        circuitBreaker:
+          requestVolumeThreshold: 10
+          sleepWindowInMilliseconds: 10000
+          errorThresholdPercentage: 60
+  ```
+
+  ![images](https://github.com/IamZY/SpringCloud/images/1571817094530.png)
 
 
 

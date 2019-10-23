@@ -1,5 +1,7 @@
 package com.ntuzy.springcloud.member.controller;
 
+import com.netflix.hystrix.contrib.javanica.annotation.DefaultProperties;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
 import com.ntuzy.springcloud.member.client.BookClient;
 import com.ntuzy.springcloud.member.client.RestResult;
 import com.ntuzy.springcloud.member.entity.Member;
@@ -19,6 +21,7 @@ import java.util.Map;
 
 @Controller
 @CrossOrigin // 利用CrossOrigin 解决跨域访问问题
+@DefaultProperties(defaultFallback = "defaultFallBack")
 public class MemberController {
     @Resource
     private MemberService memberService = null;
@@ -52,6 +55,7 @@ public class MemberController {
 
     @GetMapping("/test")
     @ResponseBody
+    @HystrixCommand(fallbackMethod = "fallback")
     public String test(Long bid) {
         // 最简单的情况就是使用内置Spring Cloud 内置的RestTemplate
         // RestTemplate 底层http传输就是apache HttpClient 组件
@@ -69,9 +73,26 @@ public class MemberController {
 //        return json;
 
         // 利用注解简化url通信
-        String json = restTemplate.getForObject("http://book/info?bid=" + bid, String.class);
+        String json = null;
+        if (bid % 2 == 0) {
+            json = restTemplate.getForObject("http://book/info?bid=" + bid, String.class);
+        } else {
+            json = "success";
+        }
         return json;
     }
+
+    // 服务降级的方法 要求返回值参数与目标方法保持一致
+    private String fallback(Long bid) {
+        return "当前系统正忙,请稍后再试";
+    }
+
+
+    // 全局默认的降级方法 不需要参数 且返回String或者任何可以被Json序列化的对象
+    private String defaultFallBack() {
+        return "当前系统正忙,请稍后再试111";
+    }
+
 
     @Resource
     private BookClient bookClient;
@@ -83,5 +104,6 @@ public class MemberController {
         RestResult info = bookClient.getInfo(bid);
         return info.getData().getName();
     }
+
 
 }

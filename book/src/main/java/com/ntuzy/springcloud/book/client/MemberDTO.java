@@ -1,19 +1,16 @@
-package com.ntuzy.springcloud.member.entity;
+package com.ntuzy.springcloud.book.client;
 
-import javax.persistence.*;
 import java.util.Date;
 
-@Entity
-@Table(name = "t_member")
-public class Member {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class MemberDTO {
+
     private Long mid;
     private String name;
     private String idno;
     private String mobile;
     private Date regdate;
     private Date expdate;
+
 
     public Long getMid() {
         return mid;
