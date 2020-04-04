@@ -27,8 +27,6 @@
 </properties>
 ```
 
-
-
 ```properties
 spring:
   application:
@@ -679,7 +677,7 @@ client+config server+ config client
           errorThresholdPercentage: 60
   ```
 
-  ![images](https://github.com/IamZY/SpringCloud/blob/master/images/1571817094530.png)
+  ![images](images/1571817094530.png)
 
 
 
