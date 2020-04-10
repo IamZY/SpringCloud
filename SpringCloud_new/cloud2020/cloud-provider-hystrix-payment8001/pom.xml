@@ -12,6 +12,7 @@
     <artifactId>cloud-provider-hystrix-payment8001</artifactId>
 
     <dependencies>
+
         <!--新增hystrix-->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
